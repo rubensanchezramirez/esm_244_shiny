@@ -200,15 +200,15 @@ fire_mt <- read_csv(here::here("data", "montana_fire_data.csv")) %>%
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326)%>% 
   mutate(fire_year = as.numeric(fire_year))
 
-fire_name <- fire_mt[order(fire_mt$fire_name),]
+top_1k_fire_size <- top_n(fire_mt, 1000, fire_mt$fire_size)
+
+top_1k_fire_size$fire_name[is.na(top_1k_fire_size$fire_name)] <- "Unknown"
+
+fire_name <- top_1k_fire_size[order(top_1k_fire_size$fire_name),]
 
 fire_time <- fire_mt %>%
   mutate(burn_time = difftime(full_cont_date,full_dis_date,units = "mins"))
   
-  
-
-
-as.numeric(period(24, "hours"), "mins")
 
 ```
 

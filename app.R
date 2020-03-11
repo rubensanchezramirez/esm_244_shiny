@@ -33,20 +33,27 @@ fire_mt <- read_csv(here::here("data", "montana_fire_data.csv")) %>%
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326)%>% 
   mutate(fire_year = as.numeric(fire_year))
 
-# Dateframe with `fire_name` in alphabeticla order for searching:
-fire_name_df <- fire_mt[order(fire_mt$fire_name),]
+# Dateframe with the top 1k fires by size:
+top_1k_fire_size <- top_n(fire_mt, 1000, fire_mt$fire_size)
+
+# Change `NA` values of names with `Unknown`: 
+top_1k_fire_size$fire_name[is.na(top_1k_fire_size$fire_name)] <- "Unknown"
+
+# Dateframe with `fire_name` in alphabeticla order from top 1k for searching:
+fire_name_df <- top_1k_fire_size[order(top_1k_fire_size$fire_name),]
 
 # Dataframe with `source_reporting_unit_name` in alphabetical order for searching:
 fire_unit_df <- fire_mt[order(fire_mt$source_reporting_unit_name),]
 
 # Color palette for cause map:
+
 pal <- colorFactor(
   palette = "YlOrRd",
-  domain = fire_mt$stat_cause_descr)
+  domain = fire_mt$fire_size)
 
 # Make an icon for our map:
 icons <- awesomeIcons(
-  icon = 'free-code-camp',
+  icon = 'fire',
   iconColor = '#FFFFFF',
   library = 'fa',
   markerColor = pal)
@@ -149,10 +156,11 @@ ui <- navbarPage(title = img(src="Bren_logo.png", height = "34px"),
 # --------------------------------------------------------------
 
 server <- function(input, output){
-  
+ 
 # -------------------------------------
 # Cause Map Output:
 # ------------------------------------
+  initial_zoom = 4
   
   filtered_mt_cause <- reactive({
     fire_mt %>%
@@ -199,8 +207,8 @@ server <- function(input, output){
       addProviderTiles(providers$OpenStreetMap.Mapnik, group = "Open Street Map", options = providerTileOptions(noWrap = TRUE)) %>%
       addProviderTiles(providers$CartoDB.DarkMatter, group = "Carto DB Dark Matter", options = providerTileOptions(noWrap = TRUE)) %>%
       addProviderTiles(providers$Esri.NatGeoWorldMap, group = "Esri NatGeo World Map ", options = providerTileOptions(noWrap = TRUE)) %>%
-      addMarkers(icon = icon("fire"),
-                 label = ~fire_size) %>% 
+      addAwesomeMarkers(icon = icons,
+                 label = c("Size (acres):", ~fire_size)) %>% 
       addLayersControl(
       baseGroups = c("Stamen Terrain", "Open Street Map", "Carto DB Dark Matter", "Esri NatGeo World Map"),
         position = c("topleft"),
@@ -212,7 +220,7 @@ server <- function(input, output){
   
   fire_name_stats <- reactive({
     fire_mt %>%  
-      select(fire_name, fire_year, stat_cause_descr, fire_size, source_reporting_unit_name, burn_time) %>%
+      select(fire_name, fire_year, stat_cause_descr, fire_size, source_reporting_unit_name, burn_time, geometry) %>%
       filter(fire_name == input$mt_fire_name) %>% 
       gt() %>% 
       tab_header(
@@ -223,7 +231,8 @@ server <- function(input, output){
         stat_cause_descr = "Cause of Fire",
         fire_size = "Fire Area (acres)",
         source_reporting_unit_name = "Name of Reporting Source",
-        burn_time = "Burn Time (D H:M:S)") %>% 
+        burn_time = "Burn Time (D H:M:S)",
+        geometry = "Lat Long Coordinates") %>% 
       tab_options(
         table.width = pct(100))
   })

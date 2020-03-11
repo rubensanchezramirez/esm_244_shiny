@@ -1,0 +1,17 @@
+---
+title: "<center><div class='mytitle'>R Markdown output with parallax</div></center>"
+author: "<center><div class='mysubtitle'>See the code on [github](https://github.com/rubensanchezramirez/esm_244_shiny). Original `SQlite` data available on [kaggle](https://www.kaggle.com/rtatman/188-million-us-wildfires/data) project.</div></center>"
+output: 
+  html_document:
+      css: style.css
+      toc: FALSE
+      includes: 
+        before_body: header.html
+---
+
+<br><br>
+
+<div class="mycontent">
+
+
+***
