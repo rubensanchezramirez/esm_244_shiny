@@ -88,6 +88,11 @@ ui <- navbarPage(title = img(src="Bren_logo.png", height = "34px"),
                  tabPanel("Fires Causes", value = "cause", icon = icon("fire"),
                             sidebarLayout(
                             sidebarPanel(width = 3, align = 'left',
+                                         HTML(
+                                           paste(
+                                             h5("Choose one (or multiple) ignition source to see the location of all the wildfires caused by that source. Click on a fire point on the map to zoom in and see the relevant information about the wildfire.")
+                                           )
+                                         ),
                                          checkboxGroupInput(inputId = "mt_cause",
                                                                label = "Choose a fire cause",
                                                                choices = c(unique(fire_mt$stat_cause_descr)),
@@ -116,7 +121,10 @@ ui <- navbarPage(title = img(src="Bren_logo.png", height = "34px"),
                  tabPanel("Search by Fire", value = "search", icon = icon("search"),
                           sidebarLayout(
                             sidebarPanel(width = 3, align = 'left',
-                                         selectInput(inputId = "mt_fire_name", label = "Choose a Fire", 
+                                         HTML(
+                                           paste(
+                                             h5("Scroll through and select a specific fire by its given name. Once selected, the interactive map will display the exact location (latitude and longitude of each fire with that name. A summary table of all important information will be displayed as well."))),
+                                         selectInput(inputId = "mt_fire_name", label = "Choose a fire from the top 1000 fire size:", 
                                                      choices = (fire_name_df$fire_name), 
                                                      selected = "Treasure County Complex")),
                             mainPanel(width = 8,
@@ -135,6 +143,9 @@ ui <- navbarPage(title = img(src="Bren_logo.png", height = "34px"),
                  tabPanel("Containment Time", value = "time", icon = icon("clock"),
                           sidebarLayout(
                             sidebarPanel(width = 3, align = 'left',
+                                         HTML(
+                                           paste(
+                                             h5("Choose a reporting source to see a graph that shows how the burn time (the difference between the discovery time and the containment time) over the 24 year period. Select a different reporting source to compare the different containment times. Varying containment times can give a window into how environmental conditions have changed overtime as well as how fire frequency and magnitude have grown or decreased in different areas of Montana."))),
                                          selectInput("reporting_unit", 
                                                      "Choose a reporting source:",
                                                      choices = c(
@@ -224,7 +235,8 @@ server <- function(input, output){
       filter(fire_name == input$mt_fire_name) %>% 
       gt() %>% 
       tab_header(
-        title = "Fire Summary") %>% 
+        title = "Fire Summary",
+        subtitle = "Basic information about the selected fire from 1992 to 2015") %>% 
       cols_label(
         fire_name = "Name of Fire",
         fire_year = "Year",

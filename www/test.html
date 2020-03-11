@@ -97,25 +97,21 @@
 
 <body>
 
-<p>This is an R HTML document. When you click the <b>Knit HTML</b> button a web page will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:</p>
+<h2>Purpose</h2>
 
-<div class="chunk" id="unnamed-chunk-1"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl std">(cars)</span>
-</pre></div>
-<div class="output"><pre class="knitr r">##      speed           dist       
-##  Min.   : 4.0   Min.   :  2.00  
-##  1st Qu.:12.0   1st Qu.: 26.00  
-##  Median :15.0   Median : 36.00  
-##  Mean   :15.4   Mean   : 42.98  
-##  3rd Qu.:19.0   3rd Qu.: 56.00  
-##  Max.   :25.0   Max.   :120.00
-</pre></div>
-</div></div>
+<p>Our Shiny App explores the Montana wildfires recorded from 1992 to 2015. Within this app, we examine the location and frequency of the wildfires, as well as the ignition source and the efficiency (or inefficiency) of fire containment over the 24-year period. The user can also search a specific fire and see its general information.</p>
 
-<p>You can also embed plots, for example:</p>
+<h2>About the Data</h2>
 
-<div class="chunk" id="unnamed-chunk-2"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">plot</span><span class="hl std">(cars)</span>
-</pre></div>
-</div><div class="rimage default"><img src="figure/unnamed-chunk-2-1.png" title="plot of chunk unnamed-chunk-2" alt="plot of chunk unnamed-chunk-2" class="plot" /></div></div>
+<p> The Fire Program Analysis fire-occurrence database we used consists of 1.8 million observations and 46 different variables consistent with the data standards of the National Wildfire Coordinating Group (NWCG). This data was acquired from the reporting systems of federal, state, and local fire organizations throughout the United States. The dataset is composed of several tables contained within an SQLITE database. Of these, the data that will be used to create the various tables, graphs, and maps will come from one dataframe which contains 1,880,465 records. Of the 46 different variables listed approximately 36 of these variables will be filtered out, leaving 10 different variables that will be drawn from in various parts of the application. The data is already in tidy format and required very little additional cleaning. Point geometry in the form of latitude and longitude will be used to map the locations of fires in most cases within the application. To get the database into data frames that can be wrangled within R we used the “RSQLite” package to connect and query the database using SQL language within R Studio. </p>
+
+<h3>Citation</h3>
+
+<p> Short, Karen C. 2017. Spatial wildfire occurrence data for the United States, 1992-2015 [FPA_FOD_20170508]. 4th Edition. Fort Collins, CO: Forest Service Research Data Archive. https://doi.org/10.2737/RDS-2013-0009.4</p>
+
+<h3>Authors</h3>
+
+<p>Anna Abelman, Jon Hart, and Ruben Sanchez Ramirez</p>
 
 </body>
 </html>
