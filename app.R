@@ -66,6 +66,7 @@ ui <- navbarPage(title = img(src="Bren_logo.png", height = "34px"),
                  id = "navBar",
                  collapsible = TRUE,
                  inverse = FALSE,
+                 theme = shinytheme("slate"),
                  windowTitle = "Montana Fire Data ShinyApp",
                  position = "fixed-top",
                  header = tags$style(
@@ -90,7 +91,7 @@ ui <- navbarPage(title = img(src="Bren_logo.png", height = "34px"),
                             sidebarPanel(width = 3, align = 'left',
                                          HTML(
                                            paste(
-                                             h5("Choose one (or multiple) ignition source to see the location of all the wildfires caused by that source. Click on a fire point on the map to zoom in and see the relevant information about the wildfire.")
+                                             h5("Choose one (or multiple) ignition source to see the location of all the wildfires caused by that source. Click on one of the points to zoom in to that specific area and continue until a red fire point is shown. Click on a fire point see the relevant information about the wildfire.")
                                            )
                                          ),
                                          checkboxGroupInput(inputId = "mt_cause",
@@ -282,9 +283,9 @@ server <- function(input, output){
                          expand = c(0, 0)) + 
       labs(title = "Montana Fire Containment Times",
            subtitle = "By Land Management Reporting Agency (1992-2015)",
-           caption = "Time series of how Montana wildfire containment times (in hours) have fluctuated annually between 1992-2015 within different land manangement units.",
+           caption = "Time series of how Montana wildfire containment times (in minutes) have fluctuated annually between 1992-2015 within different land manangement units.",
            x = "Year",
-           y = "Containment Time (D H:M:S)") +
+           y = "Containment Time (minutes)") +
       theme_bw() +
       theme(axis.text.x = element_text(size = 12),
             axis.title.y = element_text(size = 12),
