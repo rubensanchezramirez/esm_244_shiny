@@ -71,9 +71,8 @@ ui <- navbarPage(title = img(src="Bren_logo.png", height = "34px"),
 # About Panel:
 # -----------------------------------------------------
                  
-                 tabPanel("About", icon = icon("bars")#,
-                          #includeMarkdown("www/home.md")
-                          ),
+                 tabPanel("About", icon = icon("bars"),
+                          includeHTML("./www/test.html")),
                  
 # ---------------------------------------------
 # Fire Cause Panel:
