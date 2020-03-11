@@ -1,0 +1,295 @@
+---
+title: "sqlite_data_wrangling"
+author: "Ruben Sanchez Ramirez"
+date: "3/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+
+# Attach packages:
+
+library(shiny)
+library(shinythemes)
+library(shinydashboard)
+library(here)
+library(sqldf)
+library(lubridate)
+library(RSQLite)
+library(tmap)
+library(sf)
+library(janitor)
+library(tidyverse)
+#install.packages("USAboundaries")
+#install.packages("USAboundariesData", repos = "http://packages.ropensci.org", type = "source")
+library(devtools)
+#devtools::install_github("ropensci/USAboundariesData")
+library(USAboundariesData)
+library(USAboundaries)
+library(leaflet)
+library(leaflet.extras)
+library(kableExtra)
+library(lubridate)
+library(gt)
+
+```
+
+```{r}
+
+# Create an object containing the `sqlite` data 
+
+us_fire_data <- here::here("data", "FPA_FOD_20170508.sqlite")
+
+# Set dbname and driver out of convenience
+
+us_fire <- dbConnect(drv = SQLite(), dbname= us_fire_data)
+
+dbGetQuery(us_fire, "SELECT type, tbl_name  FROM sqlite_master")
+
+dbListTables(us_fire)
+#get list of fields in the surveys table
+dbListFields(us_fire,"Fires")
+dbGetQuery(us_fire,"SELECT count(*) FROM Fires")
+
+dbDisconnect(us_fire)
+
+us_fire_data <- "FPA_FOD_20170508.sqlite"
+
+us_fire <- dbConnect(drv = SQLite(), dbname= us_fire_data)
+
+q <- 'SELECT DISTINCT FIRE_CODE, FIRE_NAME, SOURCE_REPORTING_UNIT_NAME, FIRE_YEAR, DISCOVERY_DATE, DISCOVERY_DOY, DISCOVERY_TIME, CONT_DATE, CONT_DOY, CONT_TIME, STAT_CAUSE_DESCR, FIRE_SIZE, FIRE_SIZE_CLASS, OWNER_DESCR, STATE, LONGITUDE, LATITUDE FROM Fires'
+
+result <-  dbGetQuery(us_fire, q)
+
+montana_fire <- result %>% 
+  filter(STATE == 'MT')
+
+write_csv(montana_fire, path = here::here("data", "montana_fire_raw.csv"))
+
+
+
+```
+
+```{r}
+
+# Make a clean data set of the variables we will need:
+
+montana_fire_clean <- read_csv(here::here("data","montana_fire_raw.csv")) %>% 
+  # Use janitor::clean_names to clean the column names:
+  clean_names() %>% 
+  # Change format of discovery date and continment date from julian to normal
+  mutate(new_dis_date = as.Date(discovery_date, origin = structure(-2440588, class = "Date"))) %>% 
+  mutate(new_cont_date = as.Date(cont_date, origin = structure(-2440588, class = "Date"))) %>% 
+  # Change `source_reporting_unit_name` and `fire_name` to a title string (capitalize the first letter of each word) so that R can determine unique variables:
+  mutate(source_reporting_unit_name = str_to_title(source_reporting_unit_name)) %>%
+  mutate(fire_name = str_to_title(fire_name)) %>% 
+  # Use `select(-)` to remove all the unneccesry columns:
+  select(-discovery_date,
+         -discovery_doy,
+         -cont_date,
+         -cont_doy,
+         -fire_code,
+         -fire_size_class) %>% 
+  # Use `lubridate` and `paste` to put date and time of discovery and containment together and have R read it as a `ymd_hm`:
+  mutate(full_dis_date = lubridate::ymd_hm(paste(new_dis_date, discovery_time))) %>% 
+  mutate(full_cont_date = lubridate::ymd_hm(paste(new_cont_date, cont_time))) %>% 
+  # Use `difftime` to calculate how lonf it took to containe the fire, use seconds as the unit:
+  mutate(burn_time = difftime(full_cont_date,full_dis_date,units = "secs")) %>% 
+  # Change the seconds to a time preiod of days, hours, minutes, and seconds. Then change the display so that it is easiler to understand:
+  mutate(burn_time = seconds_to_period(burn_time)) %>%
+  mutate(burn_time = sprintf('%03d %02d:%02d:%02d', day(burn_time), hour(burn_time), minute(burn_time), second(burn_time))) %>%
+  # Drop any time values with NA
+  drop_na(full_cont_date, full_dis_date)
+
+#get montana state and counties shapefile 
+montana_counties <- us_counties(states = "Montana")
+
+# Make an `sf` dataframe from the lat/long variables:
+sf_mt_fire <- montana_fire_clean %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+
+```
+
+```{r}
+
+# Write new csv files for all the dataframes we may neeed:
+
+# Write csv for Montana fire Lat/Long:
+write_csv(montana_fire_clean, path = here::here("data", "montana_fire_data.csv"))
+
+# Write csv for Montana fire sf:
+write_csv(sf_mt_fire, path = here::here("data", "montana_fire_sf.csv"))
+
+# Write csv for Montana fire counties:
+write_csv(montana_counties, path = here::here("data", "montana_counties.csv"))
+
+```
+
+
+```{r}
+
+# Write some of the code for the outputs by manually choosing your own variables:
+
+fire_mt <- read_sf(here::here("data", "montana_fire_data.csv")) %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+
+pal <- colorFactor(palette = c("red", "blue","red", "blue","red", "blue","red", "blue","red", "blue","red", "blue","red"), 
+                   levels = c(unique(fire_mt$stat_cause_descr)))
+
+widget_one_selection <- fire_mt %>% 
+  filter(stat_cause_descr == "Campfire")
+
+mymap <- leaflet(data = widget_one_selection) %>%
+  addProviderTiles(providers$Stamen.Terrain, group = "Stamen Terrain", options = providerTileOptions(noWrap = TRUE)) %>%
+  addProviderTiles(providers$OpenStreetMap.Mapnik, group = "Open Street Map", options = providerTileOptions(noWrap = TRUE)) %>%
+  addProviderTiles(providers$CartoDB.DarkMatter, group = "Carto DB Dark Matter", options = providerTileOptions(noWrap = TRUE)) %>%
+  addProviderTiles(providers$Esri.NatGeoWorldMap, group = "Esri NatGeo World Map ", options = providerTileOptions(noWrap = TRUE)) %>%
+  #addFullscreenControl() %>% 
+  addMarkers(icon = icon("fire"),
+             label = ~fire_name,
+        popup = paste0("<b>Fire Name: </b>", widget_one_selection$fire_name, "<br>", "<b>Fire Year: </b>", widget_one_selection$fire_year, "<br>"),
+        clusterOptions = markerClusterOptions()) %>% 
+  addLayersControl(
+    baseGroups = c("Stamen Terrain", "Open Street Map", "Carto DB Dark Matter", "Esri NatGeo World Map"),
+    position = c("topleft"),
+    options = layersControlOptions(collapsed = TRUE)
+  )
+
+#clusterOptions = markerClusterOptions(),
+
+#addCircleMarkers(color = ~pal(stat_cause_descr), stroke = FALSE, fillOpacity = 0.5,
+
+ 
+mymap
+
+```
+
+```{r}
+
+ leaflet(filtered_df()) %>% 
+      setView(lng = -4,
+              lat = 43,
+              zoom = 2) %>% 
+      addProviderTiles("CartoDB.Positron", options = providerTileOptions(minZoom=2)) %>% 
+      setMaxBounds(
+        lng1 = 180,
+        lat1 = -70,
+        lng2 = -180,
+        lat2 = 90) %>% 
+      addPolygons(data = filtered_df(), layerId = ~ name, fillColor = ~color_select()(value),
+                  fillOpacity = .7, color = "white",
+                  stroke = T,  weight = .5,
+                  highlight = highlightOptions(
+                    weight = 1.5,
+                    color = "black",
+                    bringToFront = TRUE),
+                  label = labels,
+                  labelOptions = labelOptions(textsize = "15px")) %>% 
+      leaflet::addLegend(pal = color_select(), values = filtered_df()$value, 
+                         title = title_name(), position = "bottomleft", opacity = 0.7) 
+
+```
+
+
+SQL databases and R
+Data Carpentry contributors
+
+Introduction
+Connecting R to sqlite databases
+Running SQL queries from R
+Creating a SQLite DB using R
+Learning Objectives
+By the end of this lesson the learner will:
+
+Know how to connect R to an existing database
+Be able to use SQL syntax inside R to to query a database and return a subset of data
+Be able to use R and SQL to create a new database from existing csv files.
+Understand that scripted database interactions enhance the reproducibility of their analysis
+Introduction
+Interacting with databases through scripted languages can offer advantages over querying databases via a GUI interface. A GUI interface for your database is easier to use and allows the quick viewing of adhoc queries. Querying a database with a programmatic interface (in this case R, but it could be any language) are slightly more complicated. However the trade-off is that data manipulations are preserved in the code. Aggregations, summaries and other database operations are preserved. Therefore those pre-analysis data manipulation steps are not lost and can be reproduced later by yourself or others.
+
+Connecting R to sqlite databases
+R can connect to databases through a number of packages. In our case we will use RSQLite to connect to existing SQLite3 databases. However you should be able to connect to almost any database in R via JDBC or ODBC, or specific database packages (such as we are doing, or MySQL ).
+
+To begin these exercises we’ll connect to the mammal database you’ve just created. We’ll need the RSQLite package so be sure to install it first. install.packages('RSQLite').
+
+library(RSQLite)
+#> Loading required package: DBI
+#> Loading required package: methods
+## Set dbname and driver out of convenience
+myDB <- "data/portal_mammals.sqlite"
+conn <- dbConnect(drv = SQLite(), dbname= myDB)
+Now we’re connected to our database, let’s explore the table structure in the database. Remember we could see the list of tables in the SQLite Firefox gui. In R, we’ll need to use SQL commands.
+
+Running SQL queries from R
+We can view information about the database structure which includes a list of all tables like this:
+
+dbGetQuery(conn, "SELECT type, tbl_name  FROM sqlite_master")
+The RSQLite package also has functions that can be used to list both tables and fields within a table. Here you can see the types and names of fields and get a count of records.
+
+dbListTables(conn)
+#get list of fields in the surveys table
+dbListFields(conn,"surveys")
+dbGetQuery(conn,"SELECT count(*) FROM surveys")
+It’s good practice to always close a connection that you open in R. Let’s do that next. Note that once you’ve closed a connection, you will have to open a new connection to query and import the data again.
+
+dbDisconnect(conn)
+We’ve now covered the basics of connecting to a database and exploring its basic structure. From here we can write queries to access subsets of the data within our database, using the same methods that we used in SQLite.
+
+Let’s try some basic queries from the previous lesson. Querying simply takes a connection to a database and query as inputs and returns a dataframe with the results.
+
+Before we can do this, we need to re-establish a database connection.
+
+## Set dbname and driver out of convenience
+myDB <- "data/portal_mammals.sqlite"
+conn <- dbConnect(drv = SQLite(), dbname= myDB)
+Next, we build our query. We can use the dbGetQuery function to run the query and access data returned in a data.frame object.
+
+q <- 'SELECT DISTINCT year, species_id FROM surveys'
+result <-  dbGetQuery(conn, q)
+head(result)
+Challenge
+Write a query that returns counts of genus by plot_id
+You can join multiple tables together in SQL using the following syntax where foreign key refers to your unique id (e.g., species_id):
+
+SELECT table.col, table.col FROM table1 JOIN table2
+ON table1.key = table2.key
+JOIN table3 ON table2.key = table3.key
+Write a query that joins the species, plot, and survey tables together. The query should return counts of genus by plot type. Then create a bar plot of your results in R.
+q <- "SELECT d.plot_type , c.genus, count(*)
+FROM
+(SELECT a.genus, b.plot_id
+FROM species a
+JOIN surveys b
+ON a.species_id = b.species_id) c
+JOIN plots d
+ON c.plot_id = d.plot_id
+GROUP BY d.plot_type,c.genus"
+
+result <- dbGetQuery(conn,q)
+head(result)
+All we’ve done so far is execute the same sorts of queries that can easily be made with a GUI. Now let’s try leveraging the power of scripted queries. Imagine you want to know how many rodents were found every other year. To get this we’ll get the range of dates from the database, sequence them by two and make new queries.
+
+yearRange <- dbGetQuery(conn,"SELECT min(year),max(year) FROM surveys")
+years <- seq(yearRange[,1],yearRange[,2],by=2)
+Next we’ll build our query string using the paste() function.
+
+q <- paste("
+SELECT a.year,b.taxa,count(*) as count
+FROM surveys a
+JOIN species b
+ON a.species_id = b.species_id
+AND b.taxa = 'Rodent'
+AND a.year in (",
+paste(years,collapse=",")
+,")
+GROUP BY a.year, b.taxa",
+sep = "" )
+rCount <- dbGetQuery(conn,q)
+head(rCount)
+With the nested paste commands we were able to construct a query programmatically, without having to type out all the years. This could also be done with a for loop, especially if the query to be constructed is more complicated.
+
